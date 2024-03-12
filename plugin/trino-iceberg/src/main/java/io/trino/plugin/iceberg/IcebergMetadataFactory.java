@@ -16,6 +16,7 @@ package io.trino.plugin.iceberg;
 import com.google.inject.Inject;
 import io.airlift.json.JsonCodec;
 import io.trino.plugin.iceberg.catalog.TrinoCatalogFactory;
+import io.trino.plugin.iceberg.catalog.snowflake.SnowflakeIcebergMetadata;
 import io.trino.spi.connector.CatalogHandle;
 import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.type.TypeManager;
@@ -30,6 +31,7 @@ public class IcebergMetadataFactory
     private final TrinoCatalogFactory catalogFactory;
     private final IcebergFileSystemFactory fileSystemFactory;
     private final TableStatisticsWriter tableStatisticsWriter;
+    private final CatalogType catalogType;
 
     @Inject
     public IcebergMetadataFactory(
@@ -38,7 +40,8 @@ public class IcebergMetadataFactory
             JsonCodec<CommitTaskData> commitTaskCodec,
             TrinoCatalogFactory catalogFactory,
             IcebergFileSystemFactory fileSystemFactory,
-            TableStatisticsWriter tableStatisticsWriter)
+            TableStatisticsWriter tableStatisticsWriter,
+            IcebergConfig icebergConfig)
     {
         this.typeManager = requireNonNull(typeManager, "typeManager is null");
         this.trinoCatalogHandle = requireNonNull(trinoCatalogHandle, "trinoCatalogHandle is null");
@@ -46,10 +49,20 @@ public class IcebergMetadataFactory
         this.catalogFactory = requireNonNull(catalogFactory, "catalogFactory is null");
         this.fileSystemFactory = requireNonNull(fileSystemFactory, "fileSystemFactory is null");
         this.tableStatisticsWriter = requireNonNull(tableStatisticsWriter, "tableStatisticsWriter is null");
+        this.catalogType = requireNonNull(icebergConfig.getCatalogType(), "icebergConfig.getCatalogType() is null");
     }
 
     public IcebergMetadata create(ConnectorIdentity identity)
     {
+        if (catalogType == CatalogType.SNOWFLAKE) {
+            return new SnowflakeIcebergMetadata(
+                    typeManager,
+                    trinoCatalogHandle,
+                    commitTaskCodec,
+                    catalogFactory.create(identity),
+                    fileSystemFactory,
+                    tableStatisticsWriter);
+        }
         return new IcebergMetadata(
                 typeManager,
                 trinoCatalogHandle,

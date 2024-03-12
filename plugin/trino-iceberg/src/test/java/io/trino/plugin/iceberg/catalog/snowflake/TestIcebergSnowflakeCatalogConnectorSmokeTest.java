@@ -1,0 +1,736 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.trino.plugin.iceberg.catalog.snowflake;
+
+import com.google.common.collect.ImmutableMap;
+import io.trino.filesystem.Location;
+import io.trino.plugin.iceberg.BaseIcebergConnectorSmokeTest;
+import io.trino.plugin.iceberg.IcebergQueryRunner;
+import io.trino.plugin.iceberg.SchemaInitializer;
+import io.trino.testing.QueryFailedException;
+import io.trino.testing.QueryRunner;
+import io.trino.testing.TestingConnectorBehavior;
+import io.trino.tpch.TpchTable;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+
+import java.sql.SQLException;
+
+import static io.trino.plugin.iceberg.IcebergTestUtils.checkParquetFileSorting;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_JDBC_URI;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_PASSWORD;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_ROLE;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_TEST_DATABASE;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.SNOWFLAKE_USER;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.TableType.ICEBERG;
+import static io.trino.plugin.iceberg.catalog.snowflake.TestingSnowflakeServer.TableType.NATIVE;
+import static java.util.Locale.ENGLISH;
+import static java.util.Objects.requireNonNull;
+import static org.apache.iceberg.FileFormat.PARQUET;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
+
+@TestInstance(PER_CLASS)
+public class TestIcebergSnowflakeCatalogConnectorSmokeTest
+        extends BaseIcebergConnectorSmokeTest
+{
+    private static final String NATION = TpchTable.NATION.getTableName();
+    private static final String REGION = TpchTable.REGION.getTableName();
+
+    public static final String SNOWFLAKE_TEST_SCHEMA1 = requireSystemProperty("testing.snowflake.catalog.schema1");
+
+    public static final String S3_ACCESS_KEY = requireSystemProperty("testing.snowflake.catalog.s3.access-key");
+    public static final String S3_SECRET_KEY = requireSystemProperty("testing.snowflake.catalog.s3.secret-key");
+    public static final String S3_REGION = requireSystemProperty("testing.snowflake.catalog.s3.region");
+    public static final String SNOWFLAKE_S3_EXTERNAL_VOLUME = requireSystemProperty("testing.snowflake.catalog.s3.external.volume");
+
+    private TestingSnowflakeServer server;
+
+    public TestIcebergSnowflakeCatalogConnectorSmokeTest()
+    {
+        super(PARQUET);
+    }
+
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        server = new TestingSnowflakeServer();
+        server.execute(SNOWFLAKE_TEST_SCHEMA1, "CREATE SCHEMA IF NOT EXISTS %s".formatted(SNOWFLAKE_TEST_SCHEMA1));
+        if (!server.checkIfTableExists(ICEBERG, SNOWFLAKE_TEST_SCHEMA1, NATION)) {
+            executeOnSnowflake("""
+                    CREATE OR REPLACE ICEBERG TABLE %s (
+                    	NATIONKEY NUMBER(38,0),
+                    	NAME STRING,
+                    	REGIONKEY NUMBER(38,0),
+                    	COMMENT STRING
+                    )
+                     EXTERNAL_VOLUME = '%s'
+                     CATALOG = 'SNOWFLAKE'
+                     BASE_LOCATION = '%s/'""".formatted(NATION, SNOWFLAKE_S3_EXTERNAL_VOLUME, NATION));
+
+            executeOnSnowflake("INSERT INTO %s(NATIONKEY, NAME, REGIONKEY, COMMENT) SELECT N_NATIONKEY, N_NAME, N_REGIONKEY, N_COMMENT FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.%s"
+                    .formatted(NATION, NATION));
+        }
+        if (!server.checkIfTableExists(ICEBERG, SNOWFLAKE_TEST_SCHEMA1, REGION)) {
+            executeOnSnowflake("""
+                    CREATE OR REPLACE ICEBERG TABLE %s (
+                    	REGIONKEY NUMBER(38,0),
+                    	NAME STRING,
+                    	COMMENT STRING
+                    )
+                     EXTERNAL_VOLUME = '%s'
+                     CATALOG = 'SNOWFLAKE'
+                     BASE_LOCATION = '%s/'""".formatted(REGION, SNOWFLAKE_S3_EXTERNAL_VOLUME, REGION));
+
+            executeOnSnowflake("INSERT INTO %s(REGIONKEY, NAME, COMMENT) SELECT R_REGIONKEY, R_NAME, R_COMMENT FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.%s"
+                    .formatted(REGION, REGION));
+        }
+
+        ImmutableMap<String, String> properties = ImmutableMap.<String, String>builder()
+                .put("fs.native-s3.enabled", "true")
+                .put("s3.aws-access-key", S3_ACCESS_KEY)
+                .put("s3.aws-secret-key", S3_SECRET_KEY)
+                .put("s3.region", S3_REGION)
+                .put("iceberg.file-format", PARQUET.toString()) // Iceberg Snowflake catalog supports Parquet file format only(https://docs.snowflake.com/en/user-guide/tables-iceberg)
+                .put("iceberg.catalog.type", "snowflake")
+                .put("iceberg.snowflake-catalog.role", SNOWFLAKE_ROLE)
+                .put("iceberg.snowflake-catalog.database", SNOWFLAKE_TEST_DATABASE)
+                .put("iceberg.snowflake-catalog.account-uri", SNOWFLAKE_JDBC_URI)
+                .put("iceberg.snowflake-catalog.user", SNOWFLAKE_USER)
+                .put("iceberg.snowflake-catalog.password", SNOWFLAKE_PASSWORD)
+                .buildOrThrow();
+
+        return IcebergQueryRunner.builder(SNOWFLAKE_TEST_SCHEMA1.toLowerCase(ENGLISH))
+                .setIcebergProperties(properties)
+                .setSchemaInitializer(
+                        SchemaInitializer.builder()
+                                .withSchemaName(SNOWFLAKE_TEST_SCHEMA1.toLowerCase(ENGLISH))
+                                .build())
+                .build();
+    }
+
+    @Override
+    protected boolean hasBehavior(TestingConnectorBehavior connectorBehavior)
+    {
+        return switch (connectorBehavior) {
+            case SUPPORTS_CREATE_TABLE,
+                    SUPPORTS_DELETE,
+                    SUPPORTS_INSERT,
+                    SUPPORTS_CREATE_VIEW,
+                    SUPPORTS_CREATE_MATERIALIZED_VIEW,
+                    SUPPORTS_RENAME_SCHEMA,
+                    SUPPORTS_CREATE_SCHEMA,
+                    SUPPORTS_MERGE,
+                    SUPPORTS_UPDATE,
+                    SUPPORTS_RENAME_TABLE,
+                    SUPPORTS_ROW_LEVEL_UPDATE,
+                    SUPPORTS_ROW_LEVEL_DELETE,
+                    SUPPORTS_CREATE_OR_REPLACE_TABLE,
+                    SUPPORTS_CREATE_TABLE_WITH_DATA,
+                    SUPPORTS_COMMENT_ON_TABLE,
+                    SUPPORTS_COMMENT_ON_COLUMN,
+                    SUPPORTS_COMMENT_ON_VIEW -> false;
+            default -> super.hasBehavior(connectorBehavior);
+        };
+    }
+
+    @Test
+    @Override
+    public void testView()
+    {
+        assertThatThrownBy(super::testView)
+                .hasStackTraceContaining("This connector does not support creating views");
+    }
+
+    @Test
+    @Override
+    public void testMaterializedView()
+    {
+        assertThatThrownBy(super::testMaterializedView)
+                .hasStackTraceContaining("This connector does not support creating materialized views");
+    }
+
+    @Test
+    @Override
+    public void testRenameSchema()
+    {
+        assertThatThrownBy(super::testRenameSchema)
+                .hasStackTraceContaining("This connector does not support renaming schemas");
+    }
+
+    @Test
+    @Override
+    public void testRenameTable()
+    {
+        assertThatThrownBy(super::testRenameTable)
+                .hasStackTraceContaining("This connector does not support renaming tables");
+    }
+
+    // Overridden as the table location and column data type is different
+    @Test
+    @Override
+    public void testShowCreateTable()
+    {
+        assertThat((String) computeScalar("SHOW CREATE TABLE " + REGION))
+                .matches(""
+                        + "CREATE TABLE iceberg." + SNOWFLAKE_TEST_SCHEMA1.toLowerCase(ENGLISH) + ".%s \\(\n".formatted(REGION)
+                        + "   regionkey decimal\\(38, 0\\),\n"
+                        + "   name varchar,\n"
+                        + "   comment varchar\n"
+                        + "\\)\n"
+                        + "WITH \\(\n"
+                        + "   format = 'PARQUET',\n"
+                        + "   format_version = 2,\n"
+                        + "   location = 's3://.*/%s'\n".formatted(REGION)
+                        + "\\)");
+    }
+
+    @Test
+    @Override
+    public void testCreateTable()
+    {
+        assertThatThrownBy(super::testCreateTable)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateTableAsSelect()
+    {
+        assertThatThrownBy(super::testCreateTableAsSelect)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testInsert()
+    {
+        assertThatThrownBy(super::testInsert)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support inserts");
+    }
+
+    @Test
+    @Override
+    public void testHiddenPathColumn()
+    {
+        assertThatThrownBy(super::testHiddenPathColumn)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDeleteRowsConcurrently()
+    {
+        assertThatThrownBy(super::testDeleteRowsConcurrently)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateOrReplaceTable()
+    {
+        assertThatThrownBy(super::testCreateOrReplaceTable)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateOrReplaceTableChangeColumnNamesAndTypes()
+    {
+        assertThatThrownBy(super::testCreateOrReplaceTableChangeColumnNamesAndTypes)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithTableLocation()
+    {
+        assertThatThrownBy(super::testRegisterTableWithTableLocation)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithComments()
+    {
+        assertThatThrownBy(super::testRegisterTableWithComments)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRowLevelUpdate()
+    {
+        assertThatThrownBy(super::testRowLevelUpdate)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support merge");
+    }
+
+    @Test
+    @Override
+    public void testMerge()
+    {
+        assertThatThrownBy(super::testMerge)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support merge");
+    }
+
+    @Test
+    @Override
+    public void testCreateSchema()
+    {
+        assertThatThrownBy(super::testCreateSchema)
+                .hasMessageContaining("This connector does not support creating schemas");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithShowCreateTable()
+    {
+        assertThatThrownBy(super::testRegisterTableWithShowCreateTable)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithReInsert()
+    {
+        assertThatThrownBy(super::testRegisterTableWithReInsert)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithDroppedTable()
+    {
+        assertThatThrownBy(super::testRegisterTableWithDroppedTable)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithDifferentTableName()
+    {
+        assertThatThrownBy(super::testRegisterTableWithDifferentTableName)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithMetadataFile()
+    {
+        assertThatThrownBy(super::testRegisterTableWithMetadataFile)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateTableWithTrailingSpaceInLocation()
+    {
+        assertThatThrownBy(super::testCreateTableWithTrailingSpaceInLocation)
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @Override
+    public void testRegisterTableWithTrailingSpaceInLocation()
+    {
+        assertThatThrownBy(super::testRegisterTableWithTrailingSpaceInLocation)
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @Override
+    public void testUnregisterTable()
+    {
+        assertThatThrownBy(super::testUnregisterTable)
+                .hasStackTraceContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testUnregisterBrokenTable()
+    {
+        assertThatThrownBy(super::testUnregisterBrokenTable)
+                .hasStackTraceContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testUnregisterTableNotExistingTable()
+    {
+        assertThatThrownBy(super::testUnregisterTableNotExistingTable)
+                .hasStackTraceContaining("Table .* not found");
+    }
+
+    @Test
+    @Override
+    public void testRepeatUnregisterTable()
+    {
+        assertThatThrownBy(super::testRepeatUnregisterTable)
+                .hasStackTraceContaining("Table .* not found");
+    }
+
+    @Test
+    @Override
+    public void testUnregisterTableAccessControl()
+    {
+        assertThatThrownBy(super::testUnregisterTableAccessControl)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateTableWithNonExistingSchemaVerifyLocation()
+    {
+        assertThatThrownBy(super::testCreateTableWithNonExistingSchemaVerifyLocation)
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    @Override
+    public void testSortedNationTable()
+    {
+        assertThatThrownBy(super::testSortedNationTable)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testFileSortingWithLargerTable()
+    {
+        assertThatThrownBy(super::testFileSortingWithLargerTable)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDropTableWithMissingMetadataFile()
+    {
+        assertThatThrownBy(super::testDropTableWithMissingMetadataFile)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDropTableWithMissingSnapshotFile()
+    {
+        assertThatThrownBy(super::testDropTableWithMissingSnapshotFile)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDropTableWithMissingManifestListFile()
+    {
+        assertThatThrownBy(super::testDropTableWithMissingManifestListFile)
+                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDropTableWithMissingDataFile()
+    {
+        assertThatThrownBy(super::testDropTableWithMissingDataFile)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testDropTableWithNonExistentTableLocation()
+    {
+        assertThatThrownBy(super::testDropTableWithNonExistentTableLocation)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testMetadataTables()
+    {
+        assertThatThrownBy(super::testMetadataTables)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testPartitionFilterRequired()
+    {
+        assertThatThrownBy(super::testPartitionFilterRequired)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testTableChangesFunction()
+    {
+        assertThatThrownBy(super::testTableChangesFunction)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testRowLevelDeletesWithTableChangesFunction()
+    {
+        assertThatThrownBy(super::testRowLevelDeletesWithTableChangesFunction)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    @Override
+    public void testCreateOrReplaceWithTableChangesFunction()
+    {
+        assertThatThrownBy(super::testCreateOrReplaceWithTableChangesFunction)
+                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+    }
+
+    @Test
+    public void testNation()
+    {
+        assertQuery("SELECT count(*) FROM " + NATION, "VALUES 25");
+        assertTableColumnNames(NATION, "nationkey", "name", "regionkey", "comment");
+    }
+
+    @Test
+    public void testListTables()
+    {
+        assertThat(computeActual("SHOW TABLES").getMaterializedRows().stream()
+                .map(row -> row.getField(0))
+                .toList()).contains(REGION, NATION);
+    }
+
+    @Test
+    public void testRegion()
+    {
+        assertQuery("SELECT count(*) FROM " + REGION, "VALUES 5");
+        assertTableColumnNames(REGION, "regionkey", "name", "comment");
+        assertQuery("SELECT name FROM " + REGION, "VALUES ('AFRICA'), ('AMERICA'), ('ASIA'), ('EUROPE'), ('MIDDLE EAST')");
+    }
+
+    @Test
+    public void testSetTableComment()
+    {
+        assertThatThrownBy(() -> assertUpdate("COMMENT ON TABLE " + REGION + " is 'my-table-comment'"))
+                .hasMessage("Iceberg Snowflake catalog does not support setting table comments");
+    }
+
+    @Test
+    public void testSetViewComment()
+    {
+        assertThatThrownBy(() -> assertUpdate("COMMENT ON VIEW temp_view is 'my-table-comment'"))
+                .hasMessageMatching("line 1:1: View '.*' does not exist");
+    }
+
+    @Test
+    public void testSetViewColumnComment()
+    {
+        assertThatThrownBy(() -> assertUpdate("COMMENT ON COLUMN temp_view.col1 is 'my-column-comment'"))
+                .hasMessageMatching(".*Table does not exist: .*temp_view");
+    }
+
+    @Test
+    public void testSetMaterializedViewColumnComment()
+    {
+        assertThatThrownBy(() -> assertUpdate("COMMENT ON COLUMN temp_view.col1 is 'my-column-comment'"))
+                .hasMessageMatching(".*Table does not exist: .*temp_view");
+    }
+
+    @Test
+    public void testDropTable()
+    {
+        assertThatThrownBy(() -> assertUpdate("DROP TABLE " + REGION))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support dropping tables");
+    }
+
+    @Test
+    public void testSetTableProperties()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " SET PROPERTIES format_version = 2"))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support setting table properties");
+    }
+
+    @Test
+    public void testAddColumn()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " ADD COLUMN zip varchar"))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support adding columns");
+    }
+
+    @Test
+    public void testDropColumn()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " DROP COLUMN name"))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support dropping columns");
+    }
+
+    @Test
+    public void testRenameColumn()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " RENAME COLUMN name TO new_name"))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support renaming columns");
+    }
+    @Test
+    public void testBeginStatisticsCollection()
+    {
+        assertThatThrownBy(() -> assertUpdate("ANALYZE " + REGION))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support statistics collection");
+    }
+
+    @Test
+    public void testCreateView()
+    {
+        assertThatThrownBy(() -> assertUpdate("CREATE VIEW temp_view AS SELECT * FROM " + REGION))
+                .hasMessage("Iceberg Snowflake catalog does not support views");
+    }
+
+    @Test
+    public void testRenameView()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER VIEW non_existing_view RENAME TO existing_view"))
+                .hasMessageMatching("line 1:1: View '.*' does not exist");
+    }
+
+    @Test
+    public void testDropView()
+    {
+        assertThatThrownBy(() -> assertUpdate("DROP VIEW non_existing_view"))
+                .hasMessageMatching("line 1:1: View '.*' does not exist");
+    }
+
+    @Test
+    public void testListViews()
+    {
+        assertQuery("SELECT count(*) FROM information_schema.views", "VALUES 0");
+    }
+
+    @Test
+    public void testExecuteDelete()
+    {
+        assertThatThrownBy(() -> assertUpdate("DELETE FROM " + REGION))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support deletes");
+    }
+
+    @Test
+    public void testGetTableStatistics()
+    {
+        assertQuery(
+                "SHOW STATS FOR " + NATION,
+                          """
+                          VALUES
+                          ('nationkey', null, null, 0, null, 0.0, '24.0'),
+                          ('name', null, null, 0, null, null, null),
+                          ('regionkey', null, null, 0, null, 0.0, '4.0'),
+                          ('comment', null, null, 0, null, null, null),
+                          (null, null, null, null, 25, null, null)""");
+    }
+
+    @Test
+    public void testCreateMaterializedView()
+    {
+        assertThatThrownBy(() -> assertUpdate("CREATE MATERIALIZED VIEW mv_orders AS SELECT * FROM orders"))
+                .hasMessageMatching(".* Table '.*orders' does not exist");
+    }
+
+    @Test
+    public void testDropMaterializedView()
+    {
+        assertThatThrownBy(() -> assertUpdate("DROP MATERIALIZED VIEW mv_orders"))
+                .hasMessageMatching(".*Materialized view '.*mv_orders' does not exist");
+    }
+
+    @Test
+    public void testListMaterializedViews()
+    {
+        assertQuery("SELECT count(*) FROM information_schema.views", "VALUES 0");
+    }
+
+    @Test
+    public void testRenameMaterializedView()
+    {
+        assertThatThrownBy(() -> assertUpdate("ALTER MATERIALIZED VIEW mv_orders RENAME TO mv_new_orders"))
+                .hasMessageMatching(".*Materialized View '.*mv_orders' does not exist");
+    }
+
+    @Test
+    public void testSetColumnComment()
+    {
+        assertThatThrownBy(() -> assertUpdate("COMMENT ON COLUMN " + REGION + ".name IS 'region name_col_comment'"))
+                .hasMessageMatching("Iceberg Snowflake catalog does not support setting column comments");
+    }
+
+    @Test
+    public void testSnowflakeNativeTable()
+            throws SQLException
+    {
+        String snowflakeNativeTableName = "snowflake_native_nation";
+        if (!server.checkIfTableExists(NATIVE, SNOWFLAKE_TEST_SCHEMA1, snowflakeNativeTableName)) {
+            executeOnSnowflake("CREATE TABLE %s IF NOT EXISTS AS SELECT * FROM SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.%s"
+                    .formatted(snowflakeNativeTableName, NATION));
+        }
+        assertThatThrownBy(() -> assertQuery("SELECT count(*) FROM " + snowflakeNativeTableName))
+                .hasCauseInstanceOf(QueryFailedException.class)
+                .hasRootCauseMessage("SQL compilation error:\ninvalid parameter 'table ? is not a Snowflake iceberg table'");
+    }
+
+    @Override
+    protected boolean isFileSorted(Location path, String sortColumnName)
+    {
+        if (format == PARQUET) {
+            return checkParquetFileSorting(fileSystem.newInputFile(path), sortColumnName);
+        }
+        throw new UnsupportedOperationException("Only PARQUET file format is supported for Iceberg Snowflake catalogs");
+    }
+
+    @Override
+    protected void deleteDirectory(String location)
+    {
+        throw new UnsupportedOperationException("deleteDirectory is not supported for Iceberg snowflake catalog");
+    }
+
+    @Override
+    protected void dropTableFromMetastore(String tableName)
+    {
+        // used for register table, which is not supported for Iceberg Snowflake catalogs
+        throw new UnsupportedOperationException("dropTableFromMetastore is not supported for Iceberg snowflake catalog");
+    }
+
+    @Override
+    protected String getMetadataLocation(String tableName)
+    {
+        // used for register table, which is not supported for Iceberg Snowflake catalogs
+        throw new UnsupportedOperationException("getMetadataLocation is not supported for Iceberg snowflake catalog");
+    }
+
+    @Override
+    protected String schemaPath()
+    {
+        throw new UnsupportedOperationException("schemaPath is not supported for Iceberg snowflake catalog");
+    }
+
+    @Override
+    protected boolean locationExists(String location)
+    {
+        throw new UnsupportedOperationException("locationExists is not supported for Iceberg snowflake catalog");
+    }
+
+    private void executeOnSnowflake(String sql)
+            throws SQLException
+    {
+        server.execute(SNOWFLAKE_TEST_SCHEMA1, sql);
+    }
+
+    private static String requireSystemProperty(String property)
+    {
+        return requireNonNull(System.getProperty(property), property + " is not set");
+    }
+}
