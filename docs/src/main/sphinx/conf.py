@@ -81,6 +81,7 @@ extensions = [
     'issue',
     'sphinx_copybutton',
     'redirects',
+    'sphinxcontrib.jquery'
 ]
 
 redirects_file = 'redirects.txt'
