@@ -147,6 +147,9 @@ html_theme_options = {
     'repo_url': 'https://github.com/trinodb/trino',
     'repo_name': 'Trino',
     'version_json': '../versions.json',
+    'nav_previous_text': 'Previous',
+    'nav_next_text': 'Next',
+    'search_placeholder_text': 'Search'
 }
 
 html_css_files = [
