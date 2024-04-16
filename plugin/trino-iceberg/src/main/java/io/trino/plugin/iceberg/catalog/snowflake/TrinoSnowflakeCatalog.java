@@ -397,6 +397,12 @@ public class TrinoSnowflakeCatalog
     }
 
     @Override
+    public Transaction newTransaction(Table icebergTable)
+    {
+        throw new TrinoException(NOT_SUPPORTED, "newTransaction is not supported for Iceberg Snowflake catalogs");
+    }
+
+    @Override
     protected Optional<ConnectorMaterializedViewDefinition> doGetMaterializedView(ConnectorSession session, SchemaTableName schemaViewName)
     {
         throw new TrinoException(NOT_SUPPORTED, "doGetMaterializedView is not supported for Iceberg Snowflake catalogs");

@@ -203,7 +203,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testCreateTable()
     {
         assertThatThrownBy(super::testCreateTable)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -211,7 +211,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testCreateTableAsSelect()
     {
         assertThatThrownBy(super::testCreateTableAsSelect)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -219,7 +219,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testInsert()
     {
         assertThatThrownBy(super::testInsert)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support inserts");
+                .hasMessageContaining("newTransaction is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -227,7 +227,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testHiddenPathColumn()
     {
         assertThatThrownBy(super::testHiddenPathColumn)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -235,7 +235,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDeleteRowsConcurrently()
     {
         assertThatThrownBy(super::testDeleteRowsConcurrently)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -243,7 +243,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testCreateOrReplaceTable()
     {
         assertThatThrownBy(super::testCreateOrReplaceTable)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -251,7 +251,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testCreateOrReplaceTableChangeColumnNamesAndTypes()
     {
         assertThatThrownBy(super::testCreateOrReplaceTableChangeColumnNamesAndTypes)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -259,7 +259,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithTableLocation()
     {
         assertThatThrownBy(super::testRegisterTableWithTableLocation)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -267,7 +267,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithComments()
     {
         assertThatThrownBy(super::testRegisterTableWithComments)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -275,7 +275,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRowLevelUpdate()
     {
         assertThatThrownBy(super::testRowLevelUpdate)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support merge");
+                .hasMessageContaining("newTransaction is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -283,7 +283,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testMerge()
     {
         assertThatThrownBy(super::testMerge)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support merge");
+                .hasMessageContaining("newTransaction is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -299,7 +299,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithShowCreateTable()
     {
         assertThatThrownBy(super::testRegisterTableWithShowCreateTable)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -307,7 +307,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithReInsert()
     {
         assertThatThrownBy(super::testRegisterTableWithReInsert)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -315,7 +315,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithDroppedTable()
     {
         assertThatThrownBy(super::testRegisterTableWithDroppedTable)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -323,7 +323,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithDifferentTableName()
     {
         assertThatThrownBy(super::testRegisterTableWithDifferentTableName)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -331,7 +331,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRegisterTableWithMetadataFile()
     {
         assertThatThrownBy(super::testRegisterTableWithMetadataFile)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -355,7 +355,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testUnregisterTable()
     {
         assertThatThrownBy(super::testUnregisterTable)
-                .hasStackTraceContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasStackTraceContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -363,7 +363,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testUnregisterBrokenTable()
     {
         assertThatThrownBy(super::testUnregisterBrokenTable)
-                .hasStackTraceContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasStackTraceContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -387,7 +387,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testUnregisterTableAccessControl()
     {
         assertThatThrownBy(super::testUnregisterTableAccessControl)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -403,7 +403,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testSortedNationTable()
     {
         assertThatThrownBy(super::testSortedNationTable)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -411,7 +411,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testFileSortingWithLargerTable()
     {
         assertThatThrownBy(super::testFileSortingWithLargerTable)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -419,7 +419,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTableWithMissingMetadataFile()
     {
         assertThatThrownBy(super::testDropTableWithMissingMetadataFile)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -427,7 +427,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTableWithMissingSnapshotFile()
     {
         assertThatThrownBy(super::testDropTableWithMissingSnapshotFile)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -435,7 +435,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTableWithMissingManifestListFile()
     {
         assertThatThrownBy(super::testDropTableWithMissingManifestListFile)
-                .hasMessageContaining("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageContaining("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -443,7 +443,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTableWithMissingDataFile()
     {
         assertThatThrownBy(super::testDropTableWithMissingDataFile)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -451,7 +451,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTableWithNonExistentTableLocation()
     {
         assertThatThrownBy(super::testDropTableWithNonExistentTableLocation)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -459,7 +459,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testMetadataTables()
     {
         assertThatThrownBy(super::testMetadataTables)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -467,7 +467,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testPartitionFilterRequired()
     {
         assertThatThrownBy(super::testPartitionFilterRequired)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -475,7 +475,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testTableChangesFunction()
     {
         assertThatThrownBy(super::testTableChangesFunction)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -483,7 +483,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testRowLevelDeletesWithTableChangesFunction()
     {
         assertThatThrownBy(super::testRowLevelDeletesWithTableChangesFunction)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -491,7 +491,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testCreateOrReplaceWithTableChangesFunction()
     {
         assertThatThrownBy(super::testCreateOrReplaceWithTableChangesFunction)
-                .hasMessageMatching("Iceberg Snowflake catalog does not support creating tables");
+                .hasMessageMatching("defaultTableLocation is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -521,7 +521,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testSetTableComment()
     {
         assertThatThrownBy(() -> assertUpdate("COMMENT ON TABLE " + REGION + " is 'my-table-comment'"))
-                .hasMessage("Iceberg Snowflake catalog does not support setting table comments");
+                .hasMessage("updateTableComment is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -549,48 +549,48 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testDropTable()
     {
         assertThatThrownBy(() -> assertUpdate("DROP TABLE " + REGION))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support dropping tables");
+                .hasMessageMatching("dropTable is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
     public void testSetTableProperties()
     {
         assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " SET PROPERTIES format_version = 2"))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support setting table properties");
+                .hasMessageMatching("newTransaction is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
     public void testAddColumn()
     {
         assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " ADD COLUMN zip varchar"))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support adding columns");
+                .hasMessageMatching("Failed to add column: commitToExistingTable is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
     public void testDropColumn()
     {
         assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " DROP COLUMN name"))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support dropping columns");
+                .hasMessageMatching("Failed to drop column: commitToExistingTable is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
     public void testRenameColumn()
     {
         assertThatThrownBy(() -> assertUpdate("ALTER TABLE " + REGION + " RENAME COLUMN name TO new_name"))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support renaming columns");
+                .hasMessageMatching("Failed to rename column: commitToExistingTable is not supported for Iceberg Snowflake catalogs");
     }
     @Test
     public void testBeginStatisticsCollection()
     {
         assertThatThrownBy(() -> assertUpdate("ANALYZE " + REGION))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support statistics collection");
+                .hasMessageMatching("newTransaction is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
     public void testCreateView()
     {
         assertThatThrownBy(() -> assertUpdate("CREATE VIEW temp_view AS SELECT * FROM " + REGION))
-                .hasMessage("Iceberg Snowflake catalog does not support views");
+                .hasMessage("createView is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
@@ -617,7 +617,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testExecuteDelete()
     {
         assertThatThrownBy(() -> assertUpdate("DELETE FROM " + REGION))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support deletes");
+                .hasMessageMatching("Failed to close manifest writer");
     }
 
     @Test
@@ -665,7 +665,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     public void testSetColumnComment()
     {
         assertThatThrownBy(() -> assertUpdate("COMMENT ON COLUMN " + REGION + ".name IS 'region name_col_comment'"))
-                .hasMessageMatching("Iceberg Snowflake catalog does not support setting column comments");
+                .hasMessageMatching("updateColumnComment is not supported for Iceberg Snowflake catalogs");
     }
 
     @Test
