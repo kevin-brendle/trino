@@ -49,7 +49,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     private static final String NATION = TpchTable.NATION.getTableName();
     private static final String REGION = TpchTable.REGION.getTableName();
 
-    public static final String SNOWFLAKE_TEST_SCHEMA1 = requireSystemProperty("testing.snowflake.catalog.schema1");
+    public static final String SNOWFLAKE_TEST_SCHEMA1 = requireSystemProperty("testing.snowflake.catalog.schema");
 
     public static final String S3_ACCESS_KEY = requireSystemProperty("testing.snowflake.catalog.s3.access-key");
     public static final String S3_SECRET_KEY = requireSystemProperty("testing.snowflake.catalog.s3.secret-key");

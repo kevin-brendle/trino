@@ -84,7 +84,7 @@ public class TestTrinoSnowflakeCatalog
     private static final String NATION = TpchTable.NATION.getTableName();
     private static final String REGION = TpchTable.REGION.getTableName();
 
-    public static final String SNOWFLAKE_TEST_SCHEMA2 = requireSystemProperty("testing.snowflake.catalog.schema2");
+    public static final String SNOWFLAKE_TEST_SCHEMA2 = requireSystemProperty("testing.snowflake.catalog.schema");
 
     public static final IcebergSnowflakeCatalogConfig CATALOG_CONFIG =
             new IcebergSnowflakeCatalogConfig()

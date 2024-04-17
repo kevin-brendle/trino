@@ -700,8 +700,7 @@ jobs:
           SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_URL: ${{ vars.SNOWFLAKE_URL }}
           SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-          SNOWFLAKE_CATALOG_SCHEMA1: ${{ vars.SNOWFLAKE_CATALOG_SCHEMA1 }}
-          SNOWFLAKE_CATALOG_SCHEMA2: ${{ vars.SNOWFLAKE_CATALOG_SCHEMA2 }}
+          SNOWFLAKE_CATALOG_SCHEMA: ${{ vars.SNOWFLAKE_CATALOG_SCHEMA }}
           SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
           SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
           SNOWFLAKE_CATALOG_S3_ACCESS_KEY_ID: ${{ vars.SNOWFLAKE_CATALOG_S3_ACCESS_KEY_ID }}
@@ -722,8 +721,7 @@ jobs:
             -Dtesting.snowflake.catalog.password="${SNOWFLAKE_PASSWORD}" \
             -Dtesting.snowflake.catalog.account-url="${SNOWFLAKE_URL}" \
             -Dtesting.snowflake.catalog.database="${SNOWFLAKE_DATABASE}" \
-            -Dtesting.snowflake.catalog.schema1="${SNOWFLAKE_CATALOG_SCHEMA1}" \
-            -Dtesting.snowflake.catalog.schema2="${SNOWFLAKE_CATALOG_SCHEMA2}" \
+            -Dtesting.snowflake.catalog.schema="${SNOWFLAKE_CATALOG_SCHEMA}" \
             -Dtesting.snowflake.catalog.role="${SNOWFLAKE_ROLE}" \
             -Dtesting.snowflake.catalog.warehouse="${SNOWFLAKE_WAREHOUSE}" \
             -Dtesting.snowflake.catalog.s3.access-key="${SNOWFLAKE_CATALOG_S3_ACCESS_KEY_ID}" \
