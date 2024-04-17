@@ -25,7 +25,9 @@ import com.google.cloud.bigquery.StandardTableDefinition;
 import com.google.cloud.bigquery.TableDefinition;
 import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.TableInfo;
+import com.google.cloud.bigquery.TableResult;
 import com.google.cloud.bigquery.ViewDefinition;
+import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -59,6 +61,7 @@ import io.trino.spi.connector.ConstraintApplicationResult;
 import io.trino.spi.connector.InMemoryRecordSet;
 import io.trino.spi.connector.ProjectionApplicationResult;
 import io.trino.spi.connector.RecordCursor;
+import io.trino.spi.connector.RelationCommentMetadata;
 import io.trino.spi.connector.RetryMode;
 import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
@@ -79,6 +82,7 @@ import io.trino.spi.type.VarcharType;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -87,6 +91,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -234,6 +239,56 @@ public class BigQueryMetadata
             }
         }
         return tableNames.build();
+    }
+
+    @Override
+    public Iterator<RelationCommentMetadata> streamRelationComments(ConnectorSession session, Optional<String> schemaName, UnaryOperator<Set<SchemaTableName>> relationFilter)
+    {
+        BigQueryClient client = bigQueryClientFactory.create(session);
+        List<String> schemaNames = schemaName.map(name -> {
+            DatasetId localDatasetId = client.toDatasetId(name);
+            String remoteSchemaName = getRemoteSchemaName(client, localDatasetId.getProject(), localDatasetId.getDataset());
+            return List.of(remoteSchemaName);
+        }).orElseGet(() -> listSchemaNames(session));
+        Map<SchemaTableName, RelationCommentMetadata> resultsByName = schemaNames.stream()
+                .flatMap(schema -> {
+                    try {
+                        return listRelationCommentMetadata(session, client, schema).stream();
+                    }
+                    catch (BigQueryException e) {
+                        if (e.getCode() == 404) {
+                            log.debug("Dataset disappeared during listing operation: %s", schema);
+                            return Stream.empty();
+                        }
+                        throw new TrinoException(BIGQUERY_LISTING_TABLE_ERROR, "Failed to retrieve tables from BigQuery", e);
+                    }
+                })
+                .collect(toImmutableMap(RelationCommentMetadata::name, Functions.identity()));
+        return relationFilter.apply(resultsByName.keySet()).stream()
+                .map(resultsByName::get)
+                .iterator();
+    }
+
+    private List<RelationCommentMetadata> listRelationCommentMetadata(ConnectorSession session, BigQueryClient client, String schemaName)
+    {
+        TableResult result = client.executeQuery(session, """
+                SELECT tbls.table_schema, tbls.table_name, options.option_value
+                FROM %1$s.`INFORMATION_SCHEMA`.`TABLES` tbls
+                LEFT JOIN %1$s.`INFORMATION_SCHEMA`.`TABLE_OPTIONS` options
+                ON tbls.table_schema = options.table_schema AND tbls.table_name = options.table_name AND options.option_name = 'description'
+                """.formatted(quote(schemaName)));
+        return result.streamValues()
+                .map(row -> {
+                    Optional<String> comment = row.get(2).isNull() ? Optional.empty() : Optional.of(unquote(row.get(2).getStringValue()));
+                    return new RelationCommentMetadata(new SchemaTableName(row.get(0).getStringValue(), row.get(1).getStringValue()), false, comment);
+                })
+                .collect(toImmutableList());
+    }
+
+    private static String unquote(String quoted)
+    {
+        return quoted.substring(1, quoted.length() - 1)
+                .replace("\"\"", "\"");
     }
 
     @Override
